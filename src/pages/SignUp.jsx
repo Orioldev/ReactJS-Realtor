@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { AiFillEyeInvisible, AiFillEye } from 'react-icons/ai';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { OAuth } from '../components/OAuth';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { db } from '../firebase';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 
+
+// Este Componente es para que el usuario se registre en la aplicacion
 
 export const SignUp = () => {
 
   const [ showPassword, setshowPassword ] = useState(false)
+  // aqui se capturan los inputs o campos con los datos del usuario como el nombre, email, contrasena
   const [ formData, setFormData ] = useState({
     name: '',
     email: '',
@@ -14,11 +21,45 @@ export const SignUp = () => {
   });
 
   const { name, email, password } = formData;
+  const navigate = useNavigate();
+
+  // onChange es para almacenar el valor de los inputs
   const onChange = ({ target }) => {
     setFormData( ( prevState ) =>  ({
       ...prevState,
       [target.id]: target.value,
     }))
+  }
+
+  // la funcion onSubmit es para enviar la informacion del formulario a la base de datos
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword( 
+        auth, 
+        email, 
+        password 
+      )
+      
+      updateProfile( auth.currentUser, {
+        displayName: name
+      })
+      const user = userCredential.user;
+
+      const formDataCopy = { ...formData };
+      delete formDataCopy.password;
+      formDataCopy.timestamp = serverTimestamp();
+
+      await setDoc(doc( db, "users", user.uid ), formDataCopy );
+      toast.success('Sign Up was successfull!!')
+      navigate('/');
+      
+    } catch (error) {
+      toast.error('Something went wrong with the registration');
+    }    
+
   }
 
   return (
@@ -34,7 +75,7 @@ export const SignUp = () => {
         </div>
 
         <div className='w-full md:w-[67%] lg:w-[40%] lg:ml-10'>
-          <form>
+          <form onSubmit={ onSubmit } >
             <input 
               className='mb-6 w-full px-4 py-2 
                         text-xl text-gray-700 
